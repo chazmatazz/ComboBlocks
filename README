@@ -1,0 +1,5 @@
+This project is for CSCI 7000 - Things that Think, Spring 2011, University of Colorado Boulder. 
+
+The arduino folder contains the ComboBlocks sketch. It runs on an Arduino Uno. 
+
+The Processing folder contains a monitoring program in the graph folder.
