@@ -5,15 +5,17 @@
 Servo myservo;  // create servo object to control a servo 
 // a maximum of eight servo objects can be created 
 
-const int SUPERBRIGHT = 0; // use the superbright RGB LED
+const int SUPERBRIGHT = 1; // use the superbright RGB LED
+const int LOW_POWER = 1; // use the low power LEDs
 
 const int NUM_SCALES = 4;
 int scalePins[NUM_SCALES] = {
   A0,A1,A2,A3};
 
-double errs[NUM_SCALES] = {0,0,0,0};
+double errs[NUM_SCALES] = {
+  0,0,0,0};
 
-int doorStatePin = A3;
+int doorStatePin = A4;
 int servoPin = 2;
 int superbrightRedLedPin = 4;
 int superbrightGreenLedPin = 5;
@@ -21,25 +23,25 @@ int superbrightBlueLedPin = 6;
 int redLedPin = 7;
 int greenLedPin = 8;
 int potPin = A5;
+int emergencyUnlockPin = 9;
 
 const int SERVO_CLOSED = 120;
 const int SERVO_OPEN = 165;
+const int DOOR_THRESHOLD = 900;
+const int SERVO_DELAY = 8;
 
 int lastDoorButton = 0;
 
 int doorOpen = 0;
 
+int prevUnlocked = 1;
+
+int start_counter;
+
 double err_max;
 
-int lastVals[NUM_SCALES] = {
+int combo[NUM_SCALES] = {
   0,0,0,0};
-
-int scaleCounts[NUM_SCALES] = {
-  0,0,0,0};
-
-int comboCounts[NUM_SCALES] = {
-  0,0,0,0};
-
 
 int counter = 0;
 
@@ -76,35 +78,6 @@ void print_double_scale(String type, double* elts) {
   } 
 }
 
-void print_scale_counts(String type, int* elts) {
-  for(int i = 0; i < NUM_SCALES; i++) {
-    Serial.print(type);
-    Serial.print(" ");
-    Serial.print(elts[i]);
-  }
-}
-
-int check_lock(int* combo, int* vals) {
-  int err = 0;
-  for(int i = 0; i < NUM_SCALES; i++) {
-    err += abs(vals[i] - combo[i]);
-  }
-}
-
-void count_blocks(int* current, int* last) {
-  double changes[NUM_SCALES] = {
-    0,0,0,0};
-  for(int i = 0; i < NUM_SCALES; i++) {
-    changes[i] = current[i] - last[i]; 
-    if(changes[i] > err_max) {
-      scaleCounts[i] += 1;
-    }
-    else if(changes[i] < -err_max) {
-      scaleCounts[i] -= 1;
-    }
-  }
-}
-
 int err_check(int* combo, int* vals) {
   double err = 0;
   for(int i = 0; i < NUM_SCALES; i++) {
@@ -122,6 +95,7 @@ void setup() {
     pinMode(scalePins[i], INPUT);
   }
   pinMode(doorStatePin, INPUT);
+  pinMode(emergencyUnlockPin, INPUT);
   pinMode(potPin, INPUT);
   myservo.attach(servoPin);
   pinMode(superbrightRedLedPin, OUTPUT);
@@ -130,64 +104,76 @@ void setup() {
   pinMode(redLedPin, OUTPUT);
   pinMode(greenLedPin, OUTPUT);
   for(int i = 0; i < NUM_SCALES; i++) {
-    lastVals[i] = analogRead(scalePins[i]);
+    combo[i] = analogRead(scalePins[i]);
   }
 }
 
 void loop() {
-  int  doorState = digitalRead(doorStatePin);
-  int doorOpen = doorState == HIGH;
+  int doorState = analogRead(doorStatePin);
+  int emergencyUnlockState = digitalRead(emergencyUnlockPin)==LOW;
+  int doorOpen = doorState < DOOR_THRESHOLD || emergencyUnlockState;
+  print_int("EMERGENCY_UNLOCK_STATE", emergencyUnlockState);
+  print_int("DOOR_STATE", doorState);
   print_int("DOOR_OPEN", doorOpen);
 
   int potState = analogRead(potPin);
   err_max = potState/1023.0;
   print_double("ERR_MAX", err_max);
   int vals[NUM_SCALES] = {
-    0,0,0,0  };
+    0,0,0,0            };
   for(int i = 0; i < NUM_SCALES; i++) {
     vals[i] = analogRead(scalePins[i]);
+    if(doorOpen) {
+      combo[i] = vals[i];
+    }
+  }
+  print_scale("COMBO", combo);
+  print_scale("VALS", vals);
+
+  int unlocked = err_check(combo, vals) || doorOpen;
+  print_int("UNLOCKED", unlocked);
+
+  // reset the counter if changed
+  if(prevUnlocked != unlocked) {
+    start_counter = counter;
+  }
+  print_int("START_COUNTER", start_counter);
+
+  if(unlocked) {
+    digitalWrite(redLedPin, LOW);
+    digitalWrite(greenLedPin, LOW_POWER?HIGH:LOW);
+  } 
+  else {
+    digitalWrite(redLedPin, LOW_POWER?HIGH:LOW);
+    digitalWrite(greenLedPin, LOW);
   }
   
-  count_blocks(vals, lastVals);
-  if(doorOpen) {
-      //combo[i] = vals[i];
-      for(int i = 0; i < NUM_SCALES; i++){
-        comboCounts[i] = scaleCounts[i];
-      }
-    }
-  
-  //print_scale("COMBO", combo);
-  //print_scale("VALS", vals);
-  print_scale_counts("COMBO COUNTS", comboCounts);
-  print_scale_counts("SCALE COUNTS", scaleCounts);
-
-  //int unlocked = err_check(combo, vals);
-  int unlocked = check_lock(comboCounts, scaleCounts);
-
-  print_int("UNLOCKED", unlocked);
-  if(unlocked) {
+  // unlock only if unlocked and we have waited for delay
+  int s = unlocked && counter-start_counter > SERVO_DELAY;
+  print_int("SERVO_STATE", s);
+  if(s) {
     digitalWrite(superbrightRedLedPin, HIGH);
     digitalWrite(superbrightGreenLedPin, SUPERBRIGHT?LOW:HIGH);
     digitalWrite(superbrightBlueLedPin, HIGH);
-    digitalWrite(redLedPin, LOW);
-    digitalWrite(greenLedPin, SUPERBRIGHT?LOW:HIGH);
     myservo.write(SERVO_OPEN);
   } 
   else {
     digitalWrite(superbrightRedLedPin, SUPERBRIGHT?LOW:HIGH);
     digitalWrite(superbrightGreenLedPin, HIGH);
     digitalWrite(superbrightBlueLedPin, HIGH);
-    digitalWrite(redLedPin, SUPERBRIGHT?LOW:HIGH);
-    digitalWrite(greenLedPin, LOW);
     myservo.write(SERVO_CLOSED);
   }
 
   print_int("COUNTER", counter++);
-  for(int i = 0; i < NUM_SCALES; i++) {
-    lastVals[i] = vals[i];
-  }
+  prevUnlocked = unlocked;
   delay(10);
+
 }
+
+
+
+
+
 
 
 
