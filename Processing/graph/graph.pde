@@ -13,6 +13,7 @@ int[] analog_ports = {
   14,15,16,17
 };
 
+
 PFont fontA;
 
 int W = 1000;
@@ -56,10 +57,10 @@ void setup () {
   background(0);
 
   // For vector fonts, use the createFont() function. 
-  fontA = loadFont("CourierNewPSMT-16.vlw");
+  fontA = loadFont("CourierNewPSMT-10.vlw");
 
   // Set the font and its size (in units of pixels)
-  textFont(fontA, 16);
+  textFont(fontA, 10);
 }
 void draw () {
   // everything happens in the serialEvent()
@@ -76,9 +77,9 @@ int get_port(int analog_port) {
 void draw_errs(int analog_port, float val) {
   int i = get_port(analog_port);
   fill(255);
-  rect(TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y - 20, TEXT_X_W5, TEXT_H);
+  rect(TEXT_X1, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y, TEXT_X_W1, TEXT_H);
   fill(0);
-  text("ERR " + str(val), TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y);
+  text("ERR " + str(val), TEXT_X1, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y+TEXT_H);
 
   // draw the line
   float inByte = map(val, 0, 1, 0, height/num_analog_ports);
@@ -89,12 +90,36 @@ void draw_errs(int analog_port, float val) {
   line(xPos, y+2, xPos, y);
 }  
 
+void draw_combo_counts(int analog_port, int val) {
+  int i = get_port(analog_port);
+  fill(255);
+  rect(TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y - 20, TEXT_X_W5, TEXT_H);
+  fill(0);
+  text("COMBO_COUNTS " + str(val), TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y);
+}
+
+void draw_scale_counts(int analog_port, int val) {
+  int i = get_port(analog_port);
+  fill(255);
+  rect(TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y, TEXT_X_W5, TEXT_H);
+  fill(0);
+  text("SCALE_COUNTS " + str(val), TEXT_X5, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y+TEXT_H);
+}
+
 void draw_combo(int analog_port, int val) {
   int i = get_port(analog_port);
   fill(255);
   rect(TEXT_X2, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y - 20, TEXT_X_W2, TEXT_H);
   fill(0);
   text("COMBO " + str(val), TEXT_X2, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y);
+}
+
+void draw_samples(int analog_port, String s) {
+  int i = get_port(analog_port);
+  fill(255);
+  rect(TEXT_X2, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y, TEXT_X_W2, TEXT_H);
+  fill(0);
+  text(s, TEXT_X2, height/num_analog_ports*(num_analog_ports-i) - TEXT_Y+TEXT_H);
 }
 
 void draw_val(int xPos, int analog_port, int val) {
@@ -180,11 +205,20 @@ void serialEvent (Serial myPort) {
 
         String[] parts = inString.split(" ");
         int analog_port = int(trim(parts[1]));
-        if(trim(parts[0]).startsWith("COMBO")) {
+        if(trim(parts[0]).startsWith("COMBO_COUNTS")) {
+          draw_combo_counts(analog_port,  int(trim(parts[2])));
+        }
+        else if(trim(parts[0]).startsWith("COMBO")) {
           draw_combo(analog_port,  int(trim(parts[2])));
         }
         else if(trim(parts[0]).startsWith("ERRS")) {
           draw_errs(analog_port,  float(trim(parts[2])));
+        }
+        else if(trim(parts[0]).startsWith("SCALE_COUNTS")) {
+          draw_scale_counts(analog_port,  int(trim(parts[2])));
+        }
+        else if(trim(parts[0]).startsWith("SAMPLES")) {
+          draw_samples(analog_port, inString);
         }
         else {
           draw_val(xPos, analog_port,  int(trim(parts[2])));
