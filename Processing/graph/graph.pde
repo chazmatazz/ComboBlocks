@@ -1,5 +1,19 @@
 // Graphing sketch
 
+/*
+Usage:
+In replay mode:
+Prompts user for file to open.
+If immediate, prints out the graph immediately.
+Otherwise, prints it out slowly.
+
+If not in replay mode, record into file specified by user.
+
+Click on the red bar to select the scale to change the truth value for. 
+The bar turns green indicating that the scale is selected. 
+You can then press 0,1,2 or 3 to indicate how many blocks are present.
+
+*/
 import processing.serial.*;
 
 boolean replay = true;
