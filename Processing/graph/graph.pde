@@ -16,8 +16,8 @@ You can then press 0,1,2 or 3 to indicate how many blocks are present.
 */
 import processing.serial.*;
 
-boolean replay = true;
-boolean immediate = true;
+boolean replay = false;
+boolean immediate = false;
 
 Serial myPort;        // The serial port
 int xPos = 1;         // horizontal position of the graph
